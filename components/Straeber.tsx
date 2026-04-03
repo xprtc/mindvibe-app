@@ -38,39 +38,11 @@ const EinsteinFace = ({ isSpeaking, isListening, className = "", size = 'lg' }: 
   const dim = size === 'sm' ? 'w-12 h-12' : 'w-24 h-24';
   return (
     <div className={`relative ${dim} transition-transform duration-300 ${className}`}>
-      <div className="absolute inset-0 z-10">
-        <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-lg">
-          <ellipse cx="60" cy="56" rx="38" ry="42" fill="#ffe0bd" stroke="#1e293b" strokeWidth="2.5" />
-          <path d="M22 48 C18 30, 28 12, 42 10 C46 9, 50 8, 55 8 C60 7, 68 7, 74 10 C88 16, 100 30, 96 50" fill="#d1d5db" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round" />
-          <path d="M26 38 C18 32, 14 22, 20 16" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="none" />
-          <path d="M30 28 C24 18, 26 10, 34 8" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="none" />
-          <path d="M94 40 C100 34, 104 24, 98 18" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="none" />
-          <path d="M88 30 C96 20, 94 12, 86 8" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="none" />
-          <path d="M50 10 C48 2, 54 0, 58 4" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="none" />
-          <path d="M66 10 C68 2, 74 0, 72 6" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="none" />
-          <path d="M38 30 Q 60 26, 82 30" stroke="#1e293b" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.4" />
-          <path d="M40 35 Q 60 31, 80 35" stroke="#1e293b" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.3" />
-          <path d="M36 42 C40 38, 48 38, 52 41" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" fill="none" />
-          <path d="M68 41 C72 38, 80 38, 84 42" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" fill="none" />
-          <ellipse cx="44" cy="50" rx="5" ry="4" fill="#1e293b" />
-          <ellipse cx="76" cy="50" rx="5" ry="4" fill="#1e293b" />
-          <circle cx="46" cy="49" r="1.5" fill="white" />
-          <circle cx="78" cy="49" r="1.5" fill="white" />
-          <path d="M34 50 C32 48, 31 52, 33 53" stroke="#1e293b" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.4" />
-          <path d="M86 50 C88 48, 89 52, 87 53" stroke="#1e293b" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.4" />
-          <path d="M58 48 C56 56, 52 62, 56 64 C58 65, 62 65, 64 64 C68 62, 64 56, 62 48" stroke="#1e293b" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-          <path d="M44 70 C48 66, 56 66, 60 68 C64 66, 72 66, 76 70" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-          <path d="M44 72 C48 80, 56 84, 60 84 C64 84, 72 80, 76 72" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" fill="#fff" />
-          <ellipse cx="60" cy={isSpeaking ? "90" : "88"} rx="10" ry={isSpeaking ? "10" : "8"} fill="#f87171" stroke="#1e293b" strokeWidth="1.8">
-            {isSpeaking && <animate attributeName="ry" values="8;10;8" dur="0.4s" repeatCount="indefinite" />}
-          </ellipse>
-          <path d="M57 86 L57 92" stroke="#dc2626" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
-          <path d="M42 60 C40 66, 42 72, 44 72" stroke="#1e293b" strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.3" />
-          <path d="M78 60 C80 66, 78 72, 76 72" stroke="#1e293b" strokeWidth="1.2" strokeLinecap="round" fill="none" opacity="0.3" />
-          <ellipse cx="22" cy="54" rx="5" ry="8" fill="#ffe0bd" stroke="#1e293b" strokeWidth="2" />
-          <ellipse cx="98" cy="54" rx="5" ry="8" fill="#ffe0bd" stroke="#1e293b" strokeWidth="2" />
-        </svg>
-      </div>
+      <img
+        src="/einstein-avatar.svg"
+        alt="Einstein"
+        className="w-full h-full rounded-full drop-shadow-lg relative z-10"
+      />
       {isListening && <div className="absolute -inset-3 border-2 border-[var(--color-mv-primary)]/30 rounded-full animate-ping z-0" />}
       {isSpeaking && <div className="absolute -inset-2 bg-[var(--color-mv-primary)] rounded-full opacity-15 animate-pulse z-0" />}
     </div>

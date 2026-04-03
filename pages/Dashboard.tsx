@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2, Sparkles, Check, TrendingUp,
   ChevronRight, Trophy, ArrowUpRight, Clock,
 } from 'lucide-react';
-import { Subject, Exam } from '../types';
+import { Subject, Exam, SUBJECT_COLORS } from '../types';
 import { examDateValue } from '../utils/examDate';
 import { useSubscription } from '../context/SubscriptionContext';
+import { useSession } from '../context/SessionContext';
+import { seedDefaultSubjects } from '../services/firestoreService';
 
 interface DashboardProps {
   onNavigate: (page: string) => void;
@@ -71,6 +73,7 @@ function GradeTrendSvg({ data }: { data: { month: string; grade: number }[] }) {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, exams, onOpenExam }) => {
   const { plan, planInfo, promptUpgrade } = useSubscription();
+  const { user } = useSession();
   const currentXP = 2450;
   const streak = 4;
   const averageGrade = 4.8;
@@ -82,14 +85,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, exams, onOpenExam }) 
     { id: 3, title: 'Wochenplanung machen', xp: 100, completed: false },
   ]);
 
-  const subjects: Subject[] = [
-    { id: '1', name: 'Deutsch', targetGrade: 5, currentGrade: 4.2, color: '#F472B6' },
-    { id: '2', name: 'Englisch', targetGrade: 5, currentGrade: 5.3, color: '#60A5FA' },
-    { id: '3', name: 'Mathe', targetGrade: 5, currentGrade: 4.8, color: '#818CF8' },
-    { id: '4', name: 'Informatik', targetGrade: 5, currentGrade: 5.5, color: '#A78BFA' },
-    { id: '5', name: 'Wirtschaft', targetGrade: 4.5, currentGrade: 4.0, color: '#FB923C' },
-    { id: '6', name: 'Recht', targetGrade: 4.5, currentGrade: 4.8, color: '#F87171' },
-  ];
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+
+  // Load subjects from Firestore (same source as Sidebar)
+  useEffect(() => {
+    if (!user?.uid) return;
+    seedDefaultSubjects(user.uid).then(setSubjects).catch(console.error);
+  }, [user?.uid]);
 
   const sortedExams = [...exams].sort((a, b) => examDateValue(a).getTime() - examDateValue(b).getTime());
   const upcomingExams = sortedExams.filter(e => e.status !== 'passed').slice(0, 4);
@@ -184,12 +186,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, exams, onOpenExam }) 
                 Notenentwicklung
               </h3>
               <div className="flex gap-2">
-                {subjects.slice(0, 3).map(s => (
-                  <span key={s.id} className="flex items-center gap-1.5 text-xs text-[var(--color-mv-text-tertiary)]">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                    {s.name}
-                  </span>
-                ))}
+                {subjects.slice(0, 3).map(s => {
+                  const colors = SUBJECT_COLORS[s.color] || SUBJECT_COLORS.blue;
+                  return (
+                    <span key={s.id} className="flex items-center gap-1.5 text-xs text-[var(--color-mv-text-tertiary)]">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.accent }} />
+                      {s.name}
+                    </span>
+                  );
+                })}
               </div>
             </div>
             <div className="w-full min-w-0">
@@ -296,15 +301,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, exams, onOpenExam }) 
                 {subjects.map(s => {
                   const pct = Math.min((s.currentGrade / 6) * 100, 100);
                   const onTarget = s.currentGrade >= s.targetGrade;
+                  const colors = SUBJECT_COLORS[s.color] || SUBJECT_COLORS.blue;
                   return (
                     <div key={s.id} className="flex items-center gap-3">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colors.accent }} />
                       <span className="text-sm text-[var(--color-mv-text)] w-24 truncate">{s.name}</span>
                       <div className="flex-1 h-2 bg-[var(--color-mv-bg)] rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: s.color }} />
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: colors.accent }} />
                       </div>
                       <span className={`text-sm font-semibold w-8 text-right ${onTarget ? 'text-[var(--color-mv-primary)]' : 'text-[var(--color-mv-text)]'}`}>
-                        {s.currentGrade}
+                        {s.currentGrade > 0 ? s.currentGrade.toFixed(1) : '–'}
                       </span>
                     </div>
                   );
