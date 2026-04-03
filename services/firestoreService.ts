@@ -49,16 +49,45 @@ export async function deleteSubject(uid: string, subjectId: string): Promise<voi
   await deleteDoc(doc(db, 'users', uid, 'subjects', subjectId));
 }
 
-/** Seed default subjects for new user */
-export async function seedDefaultSubjects(uid: string): Promise<Subject[]> {
-  const existing = await getSubjects(uid);
-  if (existing.length > 0) return existing;
-  const subjects: Subject[] = [];
-  for (const s of DEFAULT_SUBJECTS) {
-    const created = await addSubject(uid, s);
-    subjects.push(created);
-  }
-  return subjects;
+/** In-flight lock to prevent concurrent seed calls */
+const _seedingPromises = new Map<string, Promise<Subject[]>>();
+
+/** Seed default subjects for new user (deduplicates on name) */
+export function seedDefaultSubjects(uid: string): Promise<Subject[]> {
+  const inflight = _seedingPromises.get(uid);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    let existing = await getSubjects(uid);
+
+    // Deduplicate: if the same subject name appears more than once, remove extras
+    const seen = new Map<string, Subject>();
+    const dupeIds: string[] = [];
+    for (const s of existing) {
+      if (seen.has(s.name)) {
+        dupeIds.push(s.id);
+      } else {
+        seen.set(s.name, s);
+      }
+    }
+    if (dupeIds.length > 0) {
+      await Promise.all(dupeIds.map((id) => deleteSubject(uid, id)));
+      existing = Array.from(seen.values());
+    }
+
+    if (existing.length > 0) return existing;
+
+    const subjects: Subject[] = [];
+    for (const s of DEFAULT_SUBJECTS) {
+      const created = await addSubject(uid, s);
+      subjects.push(created);
+    }
+    return subjects;
+  })();
+
+  _seedingPromises.set(uid, promise);
+  promise.finally(() => _seedingPromises.delete(uid));
+  return promise;
 }
 
 // ═══════════════════════════════════════════════════════

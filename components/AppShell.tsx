@@ -140,7 +140,7 @@ const AppShell: React.FC<AppShellProps> = ({ userName, userEmail, onLogout }) =>
     }
 
     switch (currentPage) {
-      case 'home': return <Dashboard onNavigate={navigate} exams={exams} onOpenExam={() => {}} onAddExam={addExam} />;
+      case 'home': return <Dashboard onNavigate={navigate} exams={exams} onOpenExam={() => {}} onAddExam={addExam} subjects={subjects} />;
       case 'pruefungen': return <Exams exams={exams} onOpenExam={() => {}} />;
       case 'review': return <ExamReview />;
       case 'bibliothek': return <Library />;
@@ -153,7 +153,7 @@ const AppShell: React.FC<AppShellProps> = ({ userName, userEmail, onLogout }) =>
       case 'contact': return <Contact />;
       case 'privacy': return <Privacy />;
       case 'impressum': return <Imprint />;
-      default: return <Dashboard onNavigate={navigate} exams={exams} onOpenExam={() => {}} onAddExam={addExam} />;
+      default: return <Dashboard onNavigate={navigate} exams={exams} onOpenExam={() => {}} onAddExam={addExam} subjects={subjects} />;
     }
   };
 
@@ -171,6 +171,7 @@ const AppShell: React.FC<AppShellProps> = ({ userName, userEmail, onLogout }) =>
         userName={userName}
         userEmail={userEmail}
         collapsed={sidebarCollapsed}
+        subjects={subjects}
       />
 
       {/* Header */}

@@ -436,3 +436,62 @@ Beispiel: "Klar, ich bringe dich zu deinen Prüfungen! [NAVIGATE:pruefungen]"
     };
   }
 };
+
+/* ================================================================
+   QUIZ GENERATION — for interactive Selbsttest
+   ================================================================ */
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];      // 4 options (A-D)
+  correctIndex: number;   // 0-3
+  explanation: string;    // shown after answering
+}
+
+export async function generateQuiz(
+  subject: string,
+  numQuestions: number = 5,
+  difficulty: 'leicht' | 'mittel' | 'schwer' = 'mittel'
+): Promise<QuizQuestion[]> {
+  try {
+    const prompt = `Du bist ein Schweizer Lehrplan 21 Quiz-Generator. Erstelle genau ${numQuestions} Multiple-Choice-Fragen für das Fach "${subject}" auf dem Niveau "${difficulty}" (Grundschule/Sekundarstufe, Kanton Bern).
+
+WICHTIG: Antworte NUR mit einem JSON-Array, kein anderer Text!
+
+Format:
+[
+  {
+    "question": "Frage hier?",
+    "options": ["Antwort A", "Antwort B", "Antwort C", "Antwort D"],
+    "correctIndex": 0,
+    "explanation": "Kurze Erklärung warum A richtig ist."
+  }
+]
+
+Regeln:
+- Genau 4 Antwortmöglichkeiten pro Frage
+- correctIndex ist 0-3 (Index der richtigen Antwort)
+- Fragen sollen abwechslungsreich sein und verschiedene Themen des Fachs abdecken
+- Erklärungen sollen lehrreich und kurz sein (1-2 Sätze)
+- Sprache: Deutsch (Schweizer Kontext)
+- Keine Markdown-Formatierung, nur reines JSON`;
+
+    const response = await getAI().models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    const text = (response.text || '').replace(/```json/g, '').replace(/```/g, '').trim();
+    const questions: QuizQuestion[] = JSON.parse(text);
+
+    // Validate
+    return questions.filter(q =>
+      q.question && Array.isArray(q.options) && q.options.length === 4 &&
+      typeof q.correctIndex === 'number' && q.correctIndex >= 0 && q.correctIndex <= 3 &&
+      q.explanation
+    ).slice(0, numQuestions);
+  } catch (err) {
+    console.error('[generateQuiz]', err);
+    return [];
+  }
+}

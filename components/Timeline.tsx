@@ -1,14 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   FileText, CheckCircle, GraduationCap, Sparkles, Star,
-  Upload, ChevronRight, Clock,
+  Upload, ChevronDown, Clock, BookOpen,
 } from 'lucide-react';
 import type { TimelineEvent, Semester } from '../types';
-import { getSemesterForDate, SUBJECT_COLORS } from '../types';
+import { getSemesterForDate } from '../types';
 
 /* ================================================================
-   Timeline — responsive: vertikal (mobile), horizontal (desktop)
-   Gruppiert nach Semester, innerhalb chronologisch
+   Timeline — Minimal Design
+   - Events collapsed by default (just icon + label)
+   - Click to expand details
+   - Grouped by semester, collapsible
+   - Responsive: works on Desktop, iPad, iPhone
    ================================================================ */
 
 interface TimelineProps {
@@ -17,159 +20,173 @@ interface TimelineProps {
   onEventClick?: (event: TimelineEvent) => void;
 }
 
-/* ── Event Icon ── */
-function EventIcon({ type }: { type: TimelineEvent['type'] }) {
-  const base = 'w-8 h-8 rounded-lg flex items-center justify-center shrink-0';
+/* ── Event Icon (compact) ── */
+function EventIcon({ type, small }: { type: TimelineEvent['type']; small?: boolean }) {
+  const s = small ? 14 : 16;
+  const base = small
+    ? 'w-6 h-6 rounded-md flex items-center justify-center shrink-0'
+    : 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0';
   switch (type) {
     case 'material':
-      return <div className={`${base} bg-blue-50 text-blue-600`}><FileText size={16} /></div>;
+      return <div className={`${base} bg-blue-50 text-blue-500`}><FileText size={s} /></div>;
     case 'self_test':
-      return <div className={`${base} bg-green-50 text-green-600`}><CheckCircle size={16} /></div>;
+      return <div className={`${base} bg-green-50 text-green-500`}><CheckCircle size={s} /></div>;
     case 'exam':
-      return <div className={`${base} bg-amber-50 text-amber-600`}><GraduationCap size={16} /></div>;
+      return <div className={`${base} bg-amber-50 text-amber-500`}><GraduationCap size={s} /></div>;
     case 'ai_content':
-      return <div className={`${base} bg-purple-50 text-purple-600`}><Sparkles size={16} /></div>;
+      return <div className={`${base} bg-purple-50 text-purple-500`}><Sparkles size={s} /></div>;
     case 'grade':
-      return <div className={`${base} bg-yellow-50 text-yellow-600`}><Star size={16} /></div>;
+      return <div className={`${base} bg-yellow-50 text-yellow-500`}><Star size={s} /></div>;
+    case 'study':
+      return <div className={`${base} bg-indigo-50 text-indigo-500`}><BookOpen size={s} /></div>;
     default:
-      return <div className={`${base} bg-gray-50 text-gray-500`}><Clock size={16} /></div>;
+      return <div className={`${base} bg-gray-50 text-gray-400`}><Clock size={s} /></div>;
   }
 }
 
-/* ── Format date nicely ── */
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
-}
-
-function formatDateFull(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('de-CH', { day: 'numeric', month: 'long', year: 'numeric' });
-}
-
-/* ── Event description ── */
-function eventDescription(event: TimelineEvent): { title: string; subtitle: string; badge?: string; badgeColor?: string } {
+/* ── Short label for collapsed view ── */
+function shortLabel(event: TimelineEvent): string {
   switch (event.type) {
-    case 'material': {
-      const count = event.materials?.files?.length || 0;
-      return {
-        title: event.title || `${count} ${count === 1 ? 'Dokument' : 'Dokumente'} hochgeladen`,
-        subtitle: event.materials?.description || 'Lernmaterial',
-        badge: `${count} Dateien`,
-        badgeColor: 'bg-blue-50 text-blue-600',
-      };
-    }
+    case 'material': return 'Material hochgeladen';
+    case 'self_test': return 'Selbsttest';
+    case 'exam': return event.exam?.title || event.title || 'Prüfung';
+    case 'ai_content': return 'Einstein-Material';
+    case 'grade': return event.grade?.isZeugnis ? 'Zeugnisnote' : 'Zwischennote';
+    case 'study': return event.study?.topic || 'Gelernt';
+    default: return event.title;
+  }
+}
+
+/* ── Badge for collapsed view (optional small indicator) ── */
+function eventBadge(event: TimelineEvent): { text: string; color: string } | null {
+  switch (event.type) {
     case 'self_test': {
       const score = event.selfTest?.score || 0;
       return {
-        title: event.title || 'Selbsttest',
-        subtitle: `${event.selfTest?.correctAnswers}/${event.selfTest?.totalQuestions} Aufgaben · ${event.selfTest?.format === 'mc' ? 'Multiple Choice' : event.selfTest?.format === 'oral' ? 'Mündlich' : 'Schriftlich'}`,
-        badge: `${score}%`,
-        badgeColor: score >= 80 ? 'bg-green-50 text-green-600' : score >= 50 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600',
+        text: `${score}%`,
+        color: score >= 80 ? 'text-green-600 bg-green-50' : score >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50',
       };
     }
     case 'exam': {
       const grade = event.exam?.grade;
-      const isPast = new Date(event.exam?.date || event.date) < new Date();
+      if (!grade) return null;
       return {
-        title: event.exam?.title || event.title || 'Prüfung',
-        subtitle: grade ? `Note: ${grade.toFixed(1)}` : isPast ? 'Note ausstehend' : `Geplant: ${formatDateFull(event.exam?.date || event.date)}`,
-        badge: grade ? grade.toFixed(1) : isPast ? '?' : 'Bald',
-        badgeColor: grade ? (grade >= 5 ? 'bg-green-50 text-green-700 font-bold' : grade >= 4 ? 'bg-amber-50 text-amber-700 font-bold' : 'bg-red-50 text-red-700 font-bold') : 'bg-gray-50 text-gray-500',
+        text: grade.toFixed(1),
+        color: grade >= 5 ? 'text-green-700 bg-green-50' : grade >= 4 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50',
       };
     }
-    case 'ai_content':
-      return {
-        title: event.title || 'Einstein-Material',
-        subtitle: event.aiContent?.contentType === 'flashcards' ? 'Flashcards' : event.aiContent?.contentType === 'quiz' ? 'Quiz' : event.aiContent?.contentType === 'summary' ? 'Zusammenfassung' : 'Lernmaterial',
-        badge: 'KI',
-        badgeColor: 'bg-purple-50 text-purple-600',
-      };
     case 'grade':
-      return {
-        title: event.grade?.isZeugnis ? 'Zeugnisnote' : 'Zwischennote',
-        subtitle: `Note: ${event.grade?.value?.toFixed(1) || '-'}`,
-        badge: event.grade?.value?.toFixed(1) || '-',
-        badgeColor: 'bg-yellow-50 text-yellow-700 font-bold',
-      };
+      return event.grade?.value ? {
+        text: event.grade.value.toFixed(1),
+        color: 'text-yellow-700 bg-yellow-50',
+      } : null;
+    case 'material': {
+      const count = event.materials?.files?.length || 0;
+      return count > 0 ? { text: `${count}`, color: 'text-blue-600 bg-blue-50' } : null;
+    }
     default:
-      return { title: event.title, subtitle: '' };
+      return null;
   }
 }
 
-/* ── Single Timeline Event Card ── */
-function TimelineEventCard({ event, isLast, onClick }: {
-  event: TimelineEvent; isLast: boolean; onClick?: () => void;
-}) {
-  const desc = eventDescription(event);
-  const isFuture = new Date(event.date) > new Date();
+/* ── Expanded detail content ── */
+function EventDetail({ event }: { event: TimelineEvent }) {
+  switch (event.type) {
+    case 'material':
+      return (
+        <div className="space-y-1.5">
+          {event.materials?.description && (
+            <p className="text-xs text-[var(--color-mv-text-secondary)]">{event.materials.description}</p>
+          )}
+          {event.materials?.files?.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs text-[var(--color-mv-text-tertiary)]">
+              <FileText size={11} />
+              <span className="truncate">{f.name}</span>
+            </div>
+          ))}
+        </div>
+      );
+    case 'self_test':
+      return (
+        <div className="flex items-center gap-4 text-xs text-[var(--color-mv-text-secondary)]">
+          <span>{event.selfTest?.correctAnswers}/{event.selfTest?.totalQuestions} richtig</span>
+          <span>{event.selfTest?.format === 'mc' ? 'Multiple Choice' : event.selfTest?.format === 'oral' ? 'Mündlich' : 'Schriftlich'}</span>
+        </div>
+      );
+    case 'exam': {
+      const isPast = new Date(event.exam?.date || event.date) < new Date();
+      return (
+        <div className="space-y-1 text-xs text-[var(--color-mv-text-secondary)]">
+          {event.exam?.grade && <p>Note: <strong>{event.exam.grade.toFixed(1)}</strong></p>}
+          {!event.exam?.grade && isPast && <p className="text-amber-600">Note noch nicht eingetragen</p>}
+          {!isPast && <p>Geplant: {new Date(event.exam?.date || event.date).toLocaleDateString('de-CH', { day: 'numeric', month: 'long' })}</p>}
+        </div>
+      );
+    }
+    case 'ai_content':
+      return (
+        <p className="text-xs text-[var(--color-mv-text-secondary)]">
+          {event.aiContent?.contentType === 'flashcards' ? 'Flashcards' :
+           event.aiContent?.contentType === 'quiz' ? 'Quiz' :
+           event.aiContent?.contentType === 'summary' ? 'Zusammenfassung' : 'Lernmaterial'}
+        </p>
+      );
+    case 'study':
+      return (
+        <div className="text-xs text-[var(--color-mv-text-secondary)] space-y-1">
+          {event.study?.duration && <p>{event.study.duration} Minuten gelernt</p>}
+          {event.study?.notes && <p>{event.study.notes}</p>}
+        </div>
+      );
+    case 'grade':
+      return (
+        <p className="text-xs text-[var(--color-mv-text-secondary)]">
+          {event.grade?.isZeugnis ? 'Zeugnisnote' : 'Zwischennote'}: <strong>{event.grade?.value?.toFixed(1)}</strong>
+        </p>
+      );
+    default:
+      return null;
+  }
+}
+
+/* ── Single Timeline Event Row — minimal by default ── */
+function TimelineRow({ event, isLast }: { event: TimelineEvent; isLast: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const badge = eventBadge(event);
+  const dateStr = new Date(event.date).toLocaleDateString('de-CH', { day: 'numeric', month: 'short' });
 
   return (
-    <div className="flex gap-3 group" onClick={onClick} role={onClick ? 'button' : undefined}
-      style={{ cursor: onClick ? 'pointer' : undefined }}>
-      {/* Vertical line + dot (mobile/vertical mode) */}
-      <div className="flex flex-col items-center md:hidden">
-        <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${isFuture ? 'border-2 border-[var(--color-mv-primary)] bg-white' : 'bg-[var(--color-mv-primary)]'}`} />
+    <div className="flex gap-3">
+      {/* Vertical line + dot */}
+      <div className="flex flex-col items-center">
+        <div className="w-2 h-2 rounded-full bg-[var(--color-mv-primary)] shrink-0 mt-2.5" />
         {!isLast && <div className="w-px flex-1 bg-[var(--color-mv-border)] mt-1" />}
       </div>
 
-      {/* Card */}
-      <div className={`flex-1 mb-4 md:mb-0 ${onClick ? 'hover:bg-[var(--color-mv-hover)] rounded-xl transition-colors' : ''}`}>
-        <p className="text-[10px] text-[var(--color-mv-text-tertiary)] mb-1">{formatDate(event.date)}</p>
-        <div className="flex items-start gap-3 p-2.5 rounded-xl">
-          <EventIcon type={event.type} />
-          <div className="flex-1 min-w-0">
-            <p className={`text-sm font-medium ${isFuture ? 'text-[var(--color-mv-text-secondary)]' : 'text-[var(--color-mv-text)]'}`}>
-              {desc.title}
-            </p>
-            <p className="text-xs text-[var(--color-mv-text-tertiary)] mt-0.5">{desc.subtitle}</p>
-          </div>
-          {desc.badge && (
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md shrink-0 ${desc.badgeColor}`}>
-              {desc.badge}
+      {/* Event content */}
+      <div className={`flex-1 pb-3 ${!isLast ? 'mb-0' : ''}`}>
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className="w-full flex items-center gap-2.5 py-1.5 px-2 -ml-1 rounded-lg hover:bg-[var(--color-mv-hover)] transition-colors text-left group"
+        >
+          <EventIcon type={event.type} small />
+          <span className="text-[11px] text-[var(--color-mv-text-tertiary)] w-12 shrink-0">{dateStr}</span>
+          <span className="text-sm text-[var(--color-mv-text)] truncate flex-1">{shortLabel(event)}</span>
+          {badge && (
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${badge.color}`}>
+              {badge.text}
             </span>
           )}
-          {onClick && <ChevronRight size={14} className="text-[var(--color-mv-text-tertiary)] shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />}
-        </div>
-      </div>
-    </div>
-  );
-}
+          <ChevronDown size={12} className={`text-[var(--color-mv-text-tertiary)] shrink-0 transition-transform opacity-0 group-hover:opacity-100 ${expanded ? 'rotate-180 opacity-100' : ''}`} />
+        </button>
 
-/* ── Horizontal Event (Desktop) ── */
-function HorizontalEventCard({ event, onClick }: {
-  event: TimelineEvent; onClick?: () => void;
-}) {
-  const desc = eventDescription(event);
-  const isFuture = new Date(event.date) > new Date();
-
-  return (
-    <div
-      className={`flex flex-col items-center min-w-[120px] max-w-[140px] group ${onClick ? 'cursor-pointer' : ''}`}
-      onClick={onClick}
-    >
-      {/* Date */}
-      <p className="text-[10px] text-[var(--color-mv-text-tertiary)] mb-2 whitespace-nowrap">{formatDate(event.date)}</p>
-
-      {/* Dot on line */}
-      <div className={`w-3 h-3 rounded-full shrink-0 z-10 ${
-        isFuture ? 'border-2 border-[var(--color-mv-primary)] bg-white' : 'bg-[var(--color-mv-primary)]'
-      }`} />
-
-      {/* Card below line */}
-      <div className={`mt-3 p-2.5 rounded-xl text-center w-full ${
-        onClick ? 'hover:bg-[var(--color-mv-hover)]' : ''
-      } transition-colors`}>
-        <EventIcon type={event.type} />
-        {desc.badge && (
-          <span className={`inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md ${desc.badgeColor}`}>
-            {desc.badge}
-          </span>
+        {/* Expanded detail */}
+        {expanded && (
+          <div className="ml-9 mt-1 pl-2 border-l-2 border-[var(--color-mv-border)] pb-1">
+            <EventDetail event={event} />
+          </div>
         )}
-        <p className={`text-xs font-medium mt-1 leading-tight ${isFuture ? 'text-[var(--color-mv-text-secondary)]' : 'text-[var(--color-mv-text)]'}`}>
-          {desc.title}
-        </p>
-        <p className="text-[10px] text-[var(--color-mv-text-tertiary)] mt-0.5 leading-tight">{desc.subtitle}</p>
       </div>
     </div>
   );
@@ -180,79 +197,54 @@ function SemesterGroup({ semester, events, isCurrentSemester, defaultExpanded, o
   semester: Semester; events: TimelineEvent[]; isCurrentSemester: boolean;
   defaultExpanded: boolean; onEventClick?: (e: TimelineEvent) => void;
 }) {
-  const [expanded, setExpanded] = React.useState(defaultExpanded);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
-  // Calculate semester average from exam grades
   const grades = events.filter(e => e.type === 'exam' && e.exam?.grade).map(e => e.exam!.grade!);
   const avg = grades.length > 0 ? (grades.reduce((a, b) => a + b, 0) / grades.length) : 0;
-  const examCount = events.filter(e => e.type === 'exam').length;
-  const uploadCount = events.filter(e => e.type === 'material').length;
 
   return (
-    <div className={`mv-card overflow-hidden ${isCurrentSemester ? '' : 'opacity-90'}`}>
-      {/* Semester header — always visible */}
+    <div className="mv-card overflow-hidden">
+      {/* Semester header */}
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-[var(--color-mv-hover)] transition-colors"
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--color-mv-hover)] transition-colors"
       >
-        <div className={`w-2 h-2 rounded-full ${isCurrentSemester ? 'bg-green-500' : 'bg-[var(--color-mv-text-tertiary)]'}`} />
+        <div className={`w-2 h-2 rounded-full shrink-0 ${isCurrentSemester ? 'bg-green-500' : 'bg-[var(--color-mv-text-tertiary)]'}`} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[var(--color-mv-text)]">
+          <span className="text-sm font-semibold text-[var(--color-mv-text)]">
             {semester.label}
-            {isCurrentSemester && <span className="ml-2 text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-md">Aktuell</span>}
-          </p>
+          </span>
+          {isCurrentSemester && (
+            <span className="ml-2 text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-md">Aktuell</span>
+          )}
           {!expanded && (
-            <p className="text-xs text-[var(--color-mv-text-tertiary)] mt-0.5">
-              {examCount} {examCount === 1 ? 'Test' : 'Tests'} · {uploadCount} Uploads
-              {avg > 0 && ` · Beste Note: ${Math.max(...grades).toFixed(1)}`}
-            </p>
+            <span className="ml-2 text-[11px] text-[var(--color-mv-text-tertiary)]">
+              {events.length} {events.length === 1 ? 'Eintrag' : 'Einträge'}
+            </span>
           )}
         </div>
         {avg > 0 && (
-          <span className={`text-sm font-bold px-2.5 py-1 rounded-lg ${
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${
             avg >= 5 ? 'bg-green-50 text-green-700' : avg >= 4 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
           }`}>
             Ø {avg.toFixed(1)}
           </span>
         )}
-        <ChevronRight size={16} className={`text-[var(--color-mv-text-tertiary)] shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+        <ChevronDown size={14} className={`text-[var(--color-mv-text-tertiary)] shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Events */}
+      {/* Events list */}
       {expanded && (
-        <div className="px-5 pb-4">
-          {/* Mobile: vertical list */}
-          <div className="md:hidden space-y-0">
-            {events.map((event, i) => (
-              <TimelineEventCard
-                key={event.id}
-                event={event}
-                isLast={i === events.length - 1}
-                onClick={onEventClick ? () => onEventClick(event) : undefined}
-              />
-            ))}
-          </div>
-
-          {/* Desktop: horizontal timeline */}
-          <div className="hidden md:block overflow-x-auto">
-            <div className="relative flex items-start gap-0 pt-2 pb-4 min-w-max">
-              {/* Horizontal line */}
-              <div className="absolute top-[38px] left-4 right-4 h-px bg-[var(--color-mv-border)]" />
-              {events.map((event) => (
-                <HorizontalEventCard
-                  key={event.id}
-                  event={event}
-                  onClick={onEventClick ? () => onEventClick(event) : undefined}
-                />
-              ))}
-            </div>
-          </div>
-
-          {events.length === 0 && (
-            <p className="text-sm text-[var(--color-mv-text-tertiary)] text-center py-6">
-              Noch keine Einträge in diesem Semester.
+        <div className="px-4 pb-3">
+          {events.length === 0 ? (
+            <p className="text-xs text-[var(--color-mv-text-tertiary)] text-center py-4">
+              Noch keine Einträge.
             </p>
+          ) : (
+            events.map((event, i) => (
+              <TimelineRow key={event.id} event={event} isLast={i === events.length - 1} />
+            ))
           )}
         </div>
       )}
@@ -265,7 +257,6 @@ function SemesterGroup({ semester, events, isCurrentSemester, defaultExpanded, o
    ══════════════════════════════════════════════ */
 
 const Timeline: React.FC<TimelineProps> = ({ events, subjectColor, onEventClick }) => {
-  // Group events by semester
   const semesterGroups = useMemo(() => {
     const groups: Record<string, { semester: Semester; events: TimelineEvent[] }> = {};
 
@@ -277,6 +268,11 @@ const Timeline: React.FC<TimelineProps> = ({ events, subjectColor, onEventClick 
       groups[sem.id].events.push(event);
     }
 
+    // Sort events within each group by date desc (newest first)
+    for (const g of Object.values(groups)) {
+      g.events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
     // Sort semesters newest first
     return Object.values(groups).sort((a, b) => {
       if (a.semester.year !== b.semester.year) return b.semester.year - a.semester.year;
@@ -284,23 +280,28 @@ const Timeline: React.FC<TimelineProps> = ({ events, subjectColor, onEventClick 
     });
   }, [events]);
 
-  // Current semester
   const currentSemester = getSemesterForDate(new Date().toISOString());
 
+  // If no events, show empty state in current semester
   if (semesterGroups.length === 0) {
     return (
-      <div className="mv-card p-8 text-center">
-        <Upload size={32} className="mx-auto text-[var(--color-mv-text-tertiary)] mb-3" />
-        <p className="text-sm font-medium text-[var(--color-mv-text)]">Noch keine Einträge</p>
-        <p className="text-xs text-[var(--color-mv-text-tertiary)] mt-1">
-          Lade Lernmaterial hoch oder trage eine Prüfung ein, um deine Timeline zu starten.
-        </p>
+      <div className="mv-card overflow-hidden">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="w-2 h-2 rounded-full bg-green-500" />
+          <span className="text-sm font-semibold text-[var(--color-mv-text)]">{currentSemester.label}</span>
+          <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-md">Aktuell</span>
+        </div>
+        <div className="px-4 pb-5 text-center">
+          <p className="text-xs text-[var(--color-mv-text-tertiary)]">
+            Noch keine Einträge. Füge Material, Tests oder Noten hinzu.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {semesterGroups.map((group) => (
         <SemesterGroup
           key={group.semester.id}

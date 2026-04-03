@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Home, Trophy, TrendingUp, Users, GraduationCap,
   BookOpen, Brain, Settings, Book, MessageSquare,
@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { useSubscription } from '../context/SubscriptionContext';
 import { useSession } from '../context/SessionContext';
-import { getSubjects, seedDefaultSubjects } from '../services/firestoreService';
 import type { Subject } from '../types';
 import { SUBJECT_COLORS } from '../types';
 
@@ -19,6 +18,7 @@ interface SidebarProps {
   userName?: string;
   userEmail?: string;
   collapsed?: boolean;
+  subjects?: Subject[];
 }
 
 type NavIcon = React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
@@ -122,18 +122,11 @@ function SubjectNavButton({
 }
 
 /* ── Main Sidebar ── */
-const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, collapsed, userName, userEmail }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate, onLogout, collapsed, userName, userEmail, subjects: propSubjects }) => {
   const w = collapsed ? 'w-[72px]' : 'w-[260px]';
   const { plan, planInfo } = useSubscription();
-  const { user } = useSession();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const subjects = propSubjects || [];
   const [subjectsExpanded, setSubjectsExpanded] = useState(true);
-
-  // Load subjects
-  useEffect(() => {
-    if (!user?.uid) return;
-    seedDefaultSubjects(user.uid).then(setSubjects).catch(console.error);
-  }, [user?.uid]);
 
   return (
     <aside className={`fixed top-0 left-0 h-full ${w} bg-[var(--color-mv-sidebar-bg)] shadow-none z-30 flex flex-col transition-all duration-200 hidden md:flex`}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   CheckCircle2, Sparkles, Check, TrendingUp,
   ChevronRight, Trophy, ArrowUpRight, Clock,
@@ -6,14 +6,13 @@ import {
 import { Subject, Exam, SUBJECT_COLORS } from '../types';
 import { examDateValue } from '../utils/examDate';
 import { useSubscription } from '../context/SubscriptionContext';
-import { useSession } from '../context/SessionContext';
-import { seedDefaultSubjects } from '../services/firestoreService';
 
 interface DashboardProps {
   onNavigate: (page: string) => void;
   exams: Exam[];
   onOpenExam: (exam: Exam) => void;
   onAddExam: (exam: Exam) => void;
+  subjects?: Subject[];
 }
 
 const gradeHistory = [
@@ -71,9 +70,9 @@ function GradeTrendSvg({ data }: { data: { month: string; grade: number }[] }) {
   );
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate, exams, onOpenExam }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onNavigate, exams, onOpenExam, subjects: propSubjects }) => {
   const { plan, planInfo, promptUpgrade } = useSubscription();
-  const { user } = useSession();
+  const subjects = propSubjects || [];
   const currentXP = 2450;
   const streak = 4;
   const averageGrade = 4.8;
@@ -84,14 +83,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, exams, onOpenExam }) 
     { id: 2, title: 'Flashcards wiederholen', xp: 30, completed: true },
     { id: 3, title: 'Wochenplanung machen', xp: 100, completed: false },
   ]);
-
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-
-  // Load subjects from Firestore (same source as Sidebar)
-  useEffect(() => {
-    if (!user?.uid) return;
-    seedDefaultSubjects(user.uid).then(setSubjects).catch(console.error);
-  }, [user?.uid]);
 
   const sortedExams = [...exams].sort((a, b) => examDateValue(a).getTime() - examDateValue(b).getTime());
   const upcomingExams = sortedExams.filter(e => e.status !== 'passed').slice(0, 4);

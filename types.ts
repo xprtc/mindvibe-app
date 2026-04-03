@@ -81,7 +81,7 @@ export interface UploadedFile {
 
 // ─── TIMELINE EVENT ─────────────────────────────────
 
-export type TimelineEventType = 'material' | 'self_test' | 'exam' | 'ai_content' | 'grade';
+export type TimelineEventType = 'material' | 'self_test' | 'exam' | 'ai_content' | 'grade' | 'study';
 
 export interface TimelineEvent {
   id: string;
@@ -130,6 +130,13 @@ export interface TimelineEvent {
     value: number;            // 1-6
     semester: string;         // Semester-ID
     isZeugnis: boolean;       // Zeugnisnote vs Zwischennote
+  };
+
+  // ── Lern-Session
+  study?: {
+    duration?: number;        // Minuten
+    topic?: string;           // Was gelernt wurde
+    notes?: string;           // Kurze Notiz
   };
 }
 
