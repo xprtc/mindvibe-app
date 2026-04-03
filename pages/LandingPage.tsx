@@ -155,39 +155,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onTryDemo, onLogin, onSelectP
             </p>
           </div>
 
-          {/* App Preview Mockup */}
+          {/* Explainer Video */}
           <div className="mt-16 max-w-4xl mx-auto">
-            <div className="mv-card p-2 shadow-2xl shadow-black/10 rounded-2xl overflow-hidden">
-              <div className="bg-gradient-to-br from-[var(--color-mv-surface)] to-[var(--color-mv-surface-secondary)] rounded-xl p-6 md:p-8">
-                {/* Mock dashboard */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  {[
-                    { label: 'Notenschnitt', value: '5.2', icon: TrendingUp, color: 'text-[var(--color-mv-primary)]', bg: 'bg-[var(--color-mv-primary-light)]' },
-                    { label: 'Lernstreak', value: '12 Tage', icon: Zap, color: 'text-amber-600', bg: 'bg-amber-50' },
-                    { label: 'XP diese Woche', value: '850', icon: Trophy, color: 'text-purple-600', bg: 'bg-purple-50' },
-                  ].map(s => (
-                    <div key={s.label} className="bg-[var(--color-mv-bg)] rounded-xl p-4">
-                      <div className={`w-8 h-8 ${s.bg} ${s.color} rounded-lg flex items-center justify-center mb-2`}>
-                        <s.icon size={16} />
-                      </div>
-                      <p className="text-xs text-[var(--color-mv-text-tertiary)]">{s.label}</p>
-                      <p className="text-lg font-bold text-[var(--color-mv-text)]">{s.value}</p>
-                    </div>
-                  ))}
-                </div>
-                {/* Mock chat bubble */}
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[var(--color-mv-primary)] flex items-center justify-center text-white shrink-0 shadow-sm">
-                    <Brain size={18} />
-                  </div>
-                  <div className="bg-[var(--color-mv-bg)] rounded-2xl rounded-tl-md px-4 py-3 max-w-md">
-                    <p className="text-sm text-[var(--color-mv-text)]">
-                      <strong>Einstein:</strong> Hey! Du hast morgen Mathe-Prüfung. Lass uns die Brüche nochmal üben — ich hab 5 Aufgaben für dich vorbereitet! 🎯
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ExplainerVideo />
           </div>
         </div>
       </section>
@@ -613,5 +583,135 @@ const LandingPage: React.FC<LandingPageProps> = ({ onTryDemo, onLogin, onSelectP
     </div>
   );
 };
+
+/* ───────── Explainer Video with Voiceover ───────── */
+
+const VIDEO_SCENES = [
+  { time: 0, bg: 'linear-gradient(135deg, #064e3b, #10A37F, #34d399)', text: 'Dein Kind kommt nach Hause', bold: '— und freut sich aufs Lernen.', emoji: '😊📚' },
+  { time: 6.5, bg: 'linear-gradient(135deg, #1e293b, #334155, #475569)', text: 'Kein Stress. Kein Frust.', bold: 'Kein Kampf um Hausaufgaben.', emoji: '✨' },
+  { time: 13, bg: 'linear-gradient(135deg, #312e81, #6366f1, #818cf8)', text: 'MindVibe — dein persönlicher', bold: 'KI-Lerncoach Einstein.', emoji: '🧑‍🔬📐🌐📖' },
+  { time: 19, bg: 'linear-gradient(135deg, #7c2d12, #ea580c, #fb923c)', text: 'Quizze, Lernpläne & Übungen', bold: '— automatisch erstellt.', emoji: '✅📝' },
+  { time: 26, bg: 'linear-gradient(135deg, #134e4a, #0d9488, #5eead4)', text: 'Jede Note erfasst.', bold: 'Jeder Fortschritt sichtbar.', emoji: '📊🏆' },
+  { time: 32, bg: 'linear-gradient(135deg, #064e3b, #10A37F, #6ee7b7)', text: 'Bessere Noten — ohne Stress.', bold: 'mindvibe.me', emoji: '🚀' },
+];
+
+function ExplainerVideo() {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [sceneIdx, setSceneIdx] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const frameRef = useRef<number>(0);
+
+  const updateScene = () => {
+    const audio = audioRef.current;
+    if (!audio || audio.paused) return;
+
+    const t = audio.currentTime;
+    const pct = (t / audio.duration) * 100;
+    setProgress(pct);
+
+    // Find active scene
+    let idx = 0;
+    for (let i = VIDEO_SCENES.length - 1; i >= 0; i--) {
+      if (t >= VIDEO_SCENES[i].time) { idx = i; break; }
+    }
+    setSceneIdx(idx);
+
+    if (t < audio.duration) {
+      frameRef.current = requestAnimationFrame(updateScene);
+    } else {
+      setPlaying(false);
+      setSceneIdx(0);
+      setProgress(0);
+    }
+  };
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (playing) {
+      audio.pause();
+      cancelAnimationFrame(frameRef.current);
+      setPlaying(false);
+    } else {
+      audio.currentTime = 0;
+      audio.play();
+      setPlaying(true);
+      frameRef.current = requestAnimationFrame(updateScene);
+    }
+  };
+
+  useEffect(() => {
+    return () => cancelAnimationFrame(frameRef.current);
+  }, []);
+
+  const scene = VIDEO_SCENES[sceneIdx];
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-black/20" style={{ aspectRatio: '16/9' }}>
+      <audio ref={audioRef} src="/voiceover.mp3" preload="auto" />
+
+      {/* Scene background */}
+      <div
+        className="absolute inset-0 transition-all duration-700 ease-in-out"
+        style={{ background: scene.bg }}
+      />
+
+      {/* Scene content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center px-[8%] text-center transition-opacity duration-500"
+        key={sceneIdx}>
+        {/* Emoji row */}
+        <div className="text-3xl sm:text-4xl md:text-5xl mb-4 md:mb-6 animate-fade-in" style={{ animationDuration: '0.5s' }}>
+          {scene.emoji.split('').filter(c => c.trim()).map((e, i) => (
+            <span key={i} className="inline-block mx-1" style={{ animation: `fadeInUp 0.4s ${i * 0.1}s ease-out both` }}>{e}</span>
+          ))}
+        </div>
+
+        {/* Text */}
+        <p className="text-lg sm:text-2xl md:text-4xl font-normal text-white/80 leading-snug animate-fade-in" style={{ animationDuration: '0.4s', animationDelay: '0.1s', animationFillMode: 'both' }}>
+          {scene.text}
+        </p>
+        <p className="text-xl sm:text-3xl md:text-5xl font-black text-white leading-tight mt-2 md:mt-3 animate-fade-in" style={{ animationDuration: '0.4s', animationDelay: '0.25s', animationFillMode: 'both' }}>
+          {scene.bold}
+        </p>
+      </div>
+
+      {/* Play/Pause overlay */}
+      {!playing && (
+        <div
+          className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center cursor-pointer z-10 transition-opacity"
+          onClick={togglePlay}
+        >
+          <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-[var(--color-mv-primary)] flex items-center justify-center shadow-lg shadow-[var(--color-mv-primary)]/40 hover:scale-110 transition-transform">
+            <Play size={32} className="text-white ml-1" fill="white" />
+          </div>
+          <p className="text-white/60 text-xs md:text-sm mt-4 font-medium">Video abspielen</p>
+        </div>
+      )}
+
+      {/* Click to pause while playing */}
+      {playing && (
+        <div className="absolute inset-0 cursor-pointer z-10" onClick={togglePlay} />
+      )}
+
+      {/* Progress bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10 z-20">
+        <div
+          className="h-full bg-white/60 transition-[width] duration-100"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* Inline keyframes */}
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export default LandingPage;
